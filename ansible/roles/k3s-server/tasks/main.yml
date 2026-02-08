@@ -1,0 +1,28 @@
+---
+- name: Check if K3s is already installed
+  stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Install K3s server
+  shell: >
+    curl -sfL https://get.k3s.io | sh -s - server
+    --write-kubeconfig-mode 644
+    --disable traefik
+  when: not k3s_binary.stat.exists
+
+- name: Wait for K3s to be ready
+  shell: kubectl get nodes
+  register: kubectl_result
+  until: kubectl_result.rc == 0
+  retries: 30
+  delay: 5
+
+- name: Get node token
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token
+
+- name: Store token as fact
+  set_fact:
+    k3s_node_token: "{{ k3s_token.content | b64decode | trim }}"

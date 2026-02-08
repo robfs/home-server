@@ -1,0 +1,18 @@
+---
+- name: Common setup for all nodes
+  hosts: all
+  become: yes
+  roles:
+    - common
+
+- name: Set up K3s server
+  hosts: servers
+  become: yes
+  roles:
+    - k3s-server
+
+- name: Set up K3s agents
+  hosts: agents
+  become: yes
+  roles:
+    - k3s-agent

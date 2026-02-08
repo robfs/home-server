@@ -1,0 +1,16 @@
+---
+- name: Uninstall K3s from agents
+  hosts: agents
+  become: yes
+  tasks:
+    - name: Run agent uninstall script
+      shell: /usr/local/bin/k3s-agent-uninstall.sh
+      ignore_errors: yes
+
+- name: Uninstall K3s from server
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Run server uninstall script
+      shell: /usr/local/bin/k3s-uninstall.sh
+      ignore_errors: yes

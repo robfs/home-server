@@ -1,0 +1,35 @@
+---
+- name: Update and upgrade packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600
+
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - open-iscsi
+      - nfs-common
+      - apt-transport-https
+    state: present
+
+- name: Ensure cgroups are enabled in cmdline.txt
+  lineinfile:
+    path: /boot/firmware/cmdline.txt
+    regexp: '^((?!cgroup_memory=1).*)$'
+    line: '\1 cgroup_memory=1 cgroup_enable=memory'
+    backrefs: yes
+  register: cmdline_result
+
+- name: Disable swap
+  shell: |
+    dphys-swapfile swapoff || true
+    dphys-swapfile uninstall || true
+    systemctl disable dphys-swapfile || true
+  ignore_errors: yes
+
+- name: Reboot if cmdline.txt changed
+  reboot:
+    reboot_timeout: 120
+  when: cmdline_result.changed
