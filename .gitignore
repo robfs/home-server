@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Kubeconfig (contains cluster credentials)
+*.kubeconfig
+rpi-config
+
+# Ansible
+ansible/*.retry
+ansible/**/*.retry
+
+# Secrets and tokens
+*.token
+*.key
+*.pem
+!*.pub
+
+# Environment files
+.env
+.env.*
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
