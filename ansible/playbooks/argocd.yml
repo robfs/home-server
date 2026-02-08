@@ -1,0 +1,82 @@
+---
+- name: Install ArgoCD and bootstrap GitOps
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Create argocd namespace
+      shell: kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Install ArgoCD CRDs (server-side apply for large CRDs)
+      shell: >
+        kubectl apply -k
+        "https://github.com/argoproj/argo-cd/manifests/crds?ref=stable"
+        --server-side
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Install ArgoCD
+      shell: >
+        kubectl apply -n argocd -f
+        https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Wait for ArgoCD pods to be ready
+      shell: >
+        kubectl wait --for=condition=Ready pods --all
+        -n argocd --timeout=300s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      retries: 3
+      delay: 10
+      register: argocd_wait
+      until: argocd_wait.rc == 0
+
+    - name: Expose ArgoCD via NodePort
+      shell: >
+        kubectl patch svc argocd-server -n argocd
+        -p '{"spec": {"type": "NodePort", "ports": [{"port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Apply root ArgoCD application
+      shell: |
+        cat <<'EOF' | kubectl apply -f -
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+          name: root
+          namespace: argocd
+        spec:
+          project: default
+          source:
+            repoURL: https://github.com/robfs/home-server.git
+            targetRevision: main
+            path: cluster/argocd-apps
+          destination:
+            server: https://kubernetes.default.svc
+            namespace: argocd
+          syncPolicy:
+            automated:
+              prune: true
+              selfHeal: true
+        EOF
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+    - name: Get initial admin password
+      shell: >
+        kubectl -n argocd get secret argocd-initial-admin-secret
+        -o jsonpath="{.data.password}" | base64 -d
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      register: argocd_password
+
+    - name: Display ArgoCD access info
+      debug:
+        msg:
+          - "ArgoCD dashboard: https://{{ ansible_host }}:30443"
+          - "Username: admin"
+          - "Password: {{ argocd_password.stdout }}"
