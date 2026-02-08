@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR-USERNAME/rpi-cluster.git
+    repoURL: https://github.com/robfs/rpi-cluster.git
     targetRevision: main
     path: cluster/apps/nginx-test
   destination:
